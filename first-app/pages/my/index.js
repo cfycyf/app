@@ -1,66 +1,114 @@
-// pages/my/index.js
+const app = getApp()
+const CONFIG = require('../../config.js')
+const WXAPI = require('../../wxapi/main')
 Page({
-
-  /**
-   * 页面的初始数据
-   */
-  data: {
-
+	data: {
+    balance:0.00,
+    freeze:0,
+    score:0,
+    score_sign_continuous:0
   },
-
-  /**
-   * 生命周期函数--监听页面加载
-   */
-  onLoad: function (options) {
-
+	onLoad() {
+    
+	},	
+  onShow() {
+    let that = this;
+    let userInfo = wx.getStorageSync('userInfo')
+    if (!userInfo) {
+      app.goLoginPageTimeOut()
+    } else {
+      that.setData({
+        userInfo: userInfo,
+        version: CONFIG.version,
+        vipLevel: app.globalData.vipLevel
+      })
+    }
+    this.getUserApiInfo();
+    this.getUserAmount();
   },
-
-  /**
-   * 生命周期函数--监听页面初次渲染完成
-   */
-  onReady: function () {
-
+  aboutUs : function () {
+    wx.showModal({
+      title: '关于我们',
+      content: '联系我们，微信:qichenxiangyu，邮箱:mr.seviien@gmail.com！',
+      showCancel:false
+    })
   },
-
-  /**
-   * 生命周期函数--监听页面显示
-   */
-  onShow: function () {
-
+  getPhoneNumber: function(e) {
+    if (!e.detail.errMsg || e.detail.errMsg != "getPhoneNumber:ok") {
+      wx.showModal({
+        title: '提示',
+        content: '无法获取手机号码:' + e.detail.errMsg,
+        showCancel: false
+      })
+      return;
+    }
+    var that = this;
+    WXAPI.bindMobile({
+      token: wx.getStorageSync('token'),
+      encryptedData: e.detail.encryptedData,
+      iv: e.detail.iv
+    }).then(function (res) {
+      if (res.code === 10002) {
+        app.goLoginPageTimeOut()
+        return
+      }
+      if (res.code == 0) {
+        wx.showToast({
+          title: '绑定成功',
+          icon: 'success',
+          duration: 2000
+        })
+        that.getUserApiInfo();
+      } else {
+        wx.showModal({
+          title: '提示',
+          content: '绑定失败',
+          showCancel: false
+        })
+      }
+    })
   },
-
-  /**
-   * 生命周期函数--监听页面隐藏
-   */
-  onHide: function () {
-
+  getUserApiInfo: function () {
+    var that = this;
+    WXAPI.userDetail(wx.getStorageSync('token')).then(function (res) {
+      if (res.code == 0) {
+        let _data = {}
+        _data.apiUserInfoMap = res.data
+        if (res.data.base.mobile) {
+          _data.userMobile = res.data.base.mobile
+        }
+        that.setData(_data);
+      }
+    })
   },
-
-  /**
-   * 生命周期函数--监听页面卸载
-   */
-  onUnload: function () {
-
+  getUserAmount: function () {
+    var that = this;
+    WXAPI.userAmount(wx.getStorageSync('token')).then(function (res) {
+      if (res.code == 0) {
+        that.setData({
+          balance: res.data.balance.toFixed(2),
+          freeze: res.data.freeze.toFixed(2),
+          score: res.data.score
+        });
+      }
+    })
   },
-
-  /**
-   * 页面相关事件处理函数--监听用户下拉动作
-   */
-  onPullDownRefresh: function () {
-
+  relogin:function(){
+    app.goLoginPageTimeOut()
   },
-
-  /**
-   * 页面上拉触底事件的处理函数
-   */
-  onReachBottom: function () {
-
+  goAsset: function () {
+    wx.navigateTo({
+      url: "/pages/asset/index"
+    })
   },
-
-  /**
-   * 用户点击右上角分享
-   */
-  onShareAppMessage: function () {
-
+  goScore: function () {
+    wx.navigateTo({
+      url: "/pages/score/index"
+    })
+  },
+  goOrder: function (e) {
+    wx.navigateTo({
+      url: "/pages/order-list/index?type=" + e.currentTarget.dataset.type
+    })
   }
 })
